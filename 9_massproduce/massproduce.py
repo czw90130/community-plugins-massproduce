@@ -50,6 +50,7 @@ class MassProduceTaskView(gui3d.TaskView):
 
         self._setupRandomizeProxies(self.mainSettingsLayout, r)
         self._setupRandomizeMaterials(self.mainSettingsLayout, r)
+        self._setupRandomizePoses(self.mainSettingsLayout, r)
         self._setupAllowedSkinsTables(self.mainSettingsLayout, r)
         self._setupAllowedHairTable(self.mainSettingsLayout, r)
         self._setupAllowedEyebrowsTable(self.mainSettingsLayout, r)
@@ -72,16 +73,21 @@ class MassProduceTaskView(gui3d.TaskView):
 
     def _setupRandomizeMaterials(self, layout, r):
         layout.addWidget(mhapi.ui.createLabel("Randomize materials:"))
-        layout.addWidget(r.addUI("materials", "randomizeSkinMaterials", mhapi.ui.createCheckBox(label="Randomize skins", selected=True)))
+        layout.addWidget(r.addUI("materials", "randomizeSkinMaterials", mhapi.ui.createCheckBox(label="Randomize skins", selected=False)))
         #layout.addWidget(r.addUI("materials", "randomizeHairMaterials", mhapi.ui.createCheckBox(label="Randomize hair material", selected=True)))
         #layout.addWidget(r.addUI("materials", "randomizeClothesMaterials", mhapi.ui.createCheckBox(label="Randomize clothes material", selected=True)))
+        layout.addWidget(mhapi.ui.createLabel())
+        
+    def _setupRandomizePoses(self, layout, r):
+        layout.addWidget(mhapi.ui.createLabel("Randomize poses:"))
+        layout.addWidget(r.addUI("poses", "randomizePoses", mhapi.ui.createCheckBox(label="Randomize poses", selected=True)))
         layout.addWidget(mhapi.ui.createLabel())
 
     def _setupRandomizeProxies(self, layout, r):
         layout.addWidget(mhapi.ui.createLabel("Randomize clothes and body parts:"))
         layout.addWidget(r.addUI("proxies", "hair", mhapi.ui.createCheckBox(label="Randomize hair", selected=True)))
-        layout.addWidget(r.addUI("proxies", "eyelashes", mhapi.ui.createCheckBox(label="Randomize eyelashes", selected=True)))
-        layout.addWidget(r.addUI("proxies", "eyebrows", mhapi.ui.createCheckBox(label="Randomize eyebrows", selected=True)))
+        layout.addWidget(r.addUI("proxies", "eyelashes", mhapi.ui.createCheckBox(label="Randomize eyelashes", selected=False)))
+        layout.addWidget(r.addUI("proxies", "eyebrows", mhapi.ui.createCheckBox(label="Randomize eyebrows", selected=False)))
         layout.addWidget(r.addUI("proxies", "fullClothes", mhapi.ui.createCheckBox(label="Randomize full body clothes", selected=True)))
         layout.addWidget(r.addUI("proxies", "upperClothes", mhapi.ui.createCheckBox(label="Randomize upper body clothes", selected=False)))
         layout.addWidget(r.addUI("proxies", "lowerClothes", mhapi.ui.createCheckBox(label="Randomize lower body clothes", selected=False)))
@@ -830,6 +836,7 @@ class MassProduceTaskView(gui3d.TaskView):
             prog(prg, desc="Randomizing " + prgStr)
             self.nextState = HumanState(self.randomizationSettings)
             self.nextState.applyState(False)
+            self.human.applyAllTargets()
             format = self.randomizationSettings.getValue("output","fileformat")
             name = base + str(i).rjust(4,"0")
 
@@ -854,7 +861,6 @@ class MassProduceTaskView(gui3d.TaskView):
 
             i = i - 1
             self.initialState.applyState(True)
-            self.human.applyAllTargets()
 
         self.msg = QMessageBox()
         self.msg.setIcon(QMessageBox.Information)

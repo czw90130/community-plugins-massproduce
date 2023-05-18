@@ -19,6 +19,26 @@ from PyQt5.QtWidgets import *
 import pprint
 pp = pprint.PrettyPrinter(indent=4)
 
+import os
+import getpath
+import log
+import algos3d
+
+class PoseAction(gui3d.Action):
+    def __init__(self, name, library, before, after):
+        super(PoseAction, self).__init__(name)
+        self.library = library
+        self.before = before
+        self.after = after
+
+    def do(self):
+        self.library.loadPose(self.after)
+        return True
+
+    def undo(self):
+        self.library.loadPose(self.before)
+        return True
+
 class HumanState():
 
     def __init__(self, settings = None):
@@ -37,13 +57,37 @@ class HumanState():
         self._fillMacroModifierValues()
 
         self.modifierInfo = ModifierInfo()
-
+        
+        sysPosePath = getpath.getSysDataPath('poses')
+        userPosePath = getpath.getDataPath('poses')
+        self.posePaths = []
+        allPaths = os.listdir(sysPosePath)
+        for path in allPaths:
+            if path.endswith(".bvh") or path.endswith(".mhp"):
+                self.posePaths.append(os.path.join(sysPosePath,path))
+        allPaths = os.listdir(userPosePath)
+        for path in allPaths:
+            if path.endswith(".bvh") or path.endswith(".mhp"):
+                self.posePaths.append(os.path.join(userPosePath,path))
+            elif os.path.isdir(os.path.join(userPosePath,path)):
+                for subpath in os.listdir(os.path.join(userPosePath,path)):
+                    if subpath.endswith(".bvh") or subpath.endswith(".mhp"):
+                        self.posePaths.append(os.path.join(userPosePath,path,subpath))
+        log.message("Loaded %d poses" % len(self.posePaths))
+        
+        self.newpose = None
+    
         if not settings is None:
             self._randomizeMacros()
             if settings.getValue("materials", "randomizeSkinMaterials"):
                 self._randomizeSkin()
+            if settings.getValue("poses", "randomizePoses"):
+                self._randomizePose()
             self._randomizeProxies()
             self._randomizeDetails()
+   
+    def getRandomPose(self):
+        return random.choice(self.posePaths)
 
     def _fillMacroModifierValues(self):
         for group in MACROGROUPS.keys():
@@ -212,7 +256,11 @@ class HumanState():
 
         pick = random.randrange(len(matchingSkins))
         self.skin = material.fromFile(matchingSkins[pick])
-
+        
+    def _randomizePose(self):
+        log.message("Randomize Pose")
+        self.newpose = self.getRandomPose()
+        
     def _randomizeSkin(self):
 
         gender = self._getCurrentGender()
@@ -337,6 +385,20 @@ class HumanState():
         mhapi.assets.unequipAllClothes()
         for c in self.clothes:
             mhapi.assets.equipClothes(c)
+     
+    def equipPose(self):
+        category = "Pose/Animate"
+        tab = "Pose"
+        tv = mhapi.assets.api.ui.getTaskView(category, tab)
+        if tv is None:
+            raise ValueError("Could not find taskview " + str(category) + "/" + str(tab))
+
+        log.message("Changing pose from " + str(tv.currentPose) + " to " + str(self.newpose))
+        gui3d.app.do(PoseAction("Change pose", tv, tv.currentPose, self.newpose))
+        
+        tv.filechooser.refresh()
+        tv.filechooser.selectItem(tv.currentPose)
+        self.human.refreshPose()
 
     def applyState(self, assumeBodyReset=False):
 
@@ -351,6 +413,10 @@ class HumanState():
         mhapi.modifiers._threadSafeApplyAllTargets()
 
         self.equipClothes()
+        
+        self.equipPose()
+        self.human.applyAllTargets()
+        
 
     def _applyMacroModifiers(self):
         for group in MACROGROUPS.keys():
